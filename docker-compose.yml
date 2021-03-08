@@ -1,0 +1,55 @@
+version: '3.6'
+services:
+
+  person-db:
+    image: postgres:12-alpine
+    container_name: person-db
+    environment:  
+    - "POSTGRES_DB=people"
+    - "POSTGRES_USER=dbuser"
+    - "POSTGRES_PASSWORD=dbpass"
+    volumes:
+    - person-volume:/var/lib/postgresql/data
+    ports:
+    - "5432:5432"
+    networks:
+    - person-network
+    
+  person-api:
+    build:
+      context: ./person-api
+      dockerfile: ./Dockerfile
+    image: person-api
+    container_name: person-api
+    restart: on-failure
+    ports:
+      - 8080:8080
+    environment:
+    - "spring_datasource_url=jdbc:postgresql://person-db:5432/people"
+    - "spring_datasource_username=dbuser"
+    - "spring_datasource_password=dbpass"
+    entrypoint: sh
+    command: -c './wait-for-it.sh person-db:5432 -t 3 -s -- java -jar person-api.jar'
+    depends_on:
+    - person-db
+    networks:
+    - person-network
+    
+  person-web:
+    build:
+      context: ./person-web
+      dockerfile: ./Dockerfile
+    image: person-web
+    container_name: person-web
+    ports:
+      - "4200:4200"
+    depends_on:
+    - person-api
+    networks:
+    - person-network
+
+networks:
+  person-network:
+
+volumes:
+  person-volume:
